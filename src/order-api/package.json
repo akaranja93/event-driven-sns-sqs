@@ -1,0 +1,8 @@
+﻿{
+  "name": "order-api",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.600.0"
+  }
+}

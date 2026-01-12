@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Event driven microservices using SNS and SQS
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 128
+    Tracing: Active
+
+Resources:
+  OrdersTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: orders-topic
+
+  BillingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: billing-dlq
+
+  EmailDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: email-dlq
+
+  BillingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: billing-queue
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt BillingDLQ.Arn
+        maxReceiveCount: 3
+
+  EmailQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: email-queue
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt EmailDLQ.Arn
+        maxReceiveCount: 3
+
+  BillingQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref BillingQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: sqs:SendMessage
+            Resource: !GetAtt BillingQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref OrdersTopic
+
+  EmailQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref EmailQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: sqs:SendMessage
+            Resource: !GetAtt EmailQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref OrdersTopic
+
+  BillingSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OrdersTopic
+      Protocol: sqs
+      Endpoint: !GetAtt BillingQueue.Arn
+
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OrdersTopic
+      Protocol: sqs
+      Endpoint: !GetAtt EmailQueue.Arn
+
+  OrderApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: order-api
+      CodeUri: src/order-api/
+      Handler: index.handler
+      Environment:
+        Variables:
+          ORDERS_TOPIC_ARN: !Ref OrdersTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref OrdersTopic
+      Events:
+        CreateOrder:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: post
+
+  BillingWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: billing-worker
+      CodeUri: src/billing-worker/
+      Handler: index.handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: billing-queue
+      Events:
+        BillingQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt BillingQueue.Arn
+            BatchSize: 10
+
+  EmailWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: email-worker
+      CodeUri: src/email-worker/
+      Handler: index.handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: email-queue
+      Events:
+        EmailQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt EmailQueue.Arn
+            BatchSize: 10
+
+Outputs:
+  OrdersApiUrl:
+    Description: API endpoint to create orders
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/orders"
