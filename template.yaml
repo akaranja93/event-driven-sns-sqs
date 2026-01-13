@@ -76,18 +76,25 @@ Resources:
                 aws:SourceArn: !Ref OrdersTopic
 
   BillingSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref OrdersTopic
-      Protocol: sqs
-      Endpoint: !GetAtt BillingQueue.Arn
+  Type: AWS::SNS::Subscription
+  Properties:
+    TopicArn: !Ref OrdersTopic
+    Protocol: sqs
+    Endpoint: !GetAtt BillingQueue.Arn
+    FilterPolicy:
+      eventType:
+        - OrderCreated
 
   EmailSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref OrdersTopic
-      Protocol: sqs
-      Endpoint: !GetAtt EmailQueue.Arn
+  Type: AWS::SNS::Subscription
+  Properties:
+    TopicArn: !Ref OrdersTopic
+    Protocol: sqs
+    Endpoint: !GetAtt EmailQueue.Arn
+    FilterPolicy:
+      eventType:
+        - OrderCreated
+        - OrderCancelled
 
   OrderApiFunction:
     Type: AWS::Serverless::Function

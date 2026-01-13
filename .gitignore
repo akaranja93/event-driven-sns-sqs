@@ -216,3 +216,9 @@ $RECYCLE.BIN/
 .DS_Store
 Thumbs.db
 
+# order-api.zip
+billing-filter.json
+email-filter.json
+packaged.yaml
+
+

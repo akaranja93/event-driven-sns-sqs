@@ -5,12 +5,14 @@ const sns = new SNSClient({});
 exports.handler = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : {};
+
+    const eventType = body.eventType || "OrderCreated";
     const orderId = body.orderId || `ord_${Date.now()}`;
     const amount = body.amount ?? 19.99;
     const customerEmail = body.customerEmail || "customer@example.com";
 
     const message = {
-      eventType: "OrderCreated",
+      eventType,
       version: "1",
       timestamp: new Date().toISOString(),
       data: { orderId, amount, customerEmail }
@@ -24,7 +26,7 @@ exports.handler = async (event) => {
         TopicArn: topicArn,
         Message: JSON.stringify(message),
         MessageAttributes: {
-          eventType: { DataType: "String", StringValue: "OrderCreated" }
+          eventType: { DataType: "String", StringValue: eventType }
         }
       })
     );
@@ -32,7 +34,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 201,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ok: true, published: true, orderId })
+      body: JSON.stringify({ ok: true, published: true, eventType, orderId })
     };
   } catch (err) {
     console.error("Order API error:", err);
