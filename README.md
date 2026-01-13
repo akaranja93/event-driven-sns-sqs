@@ -12,3 +12,5 @@ Email subscription:
 
 This reduces unnecessary processing, improves scalability, and keeps services loosely coupled.
 Filtering behavior was verified using CloudWatch Logs to confirm correct event delivery.
+
+
