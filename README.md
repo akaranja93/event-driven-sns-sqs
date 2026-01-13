@@ -1,10 +1,14 @@
 ## Subscription filtering
-SNS subscription filtering is enabled using MessageAttributes.
+SNS subscription filtering is enabled using MessageAttributes to control event routing.
 
-Billing subscription filter:
-eventType = OrderCreated
+Each published event includes an `eventType` message attribute.  
+SNS subscriptions apply filter policies so that each service receives only the events it needs.
 
-Email subscription filter:
-eventType = OrderCreated, OrderCancelled
+Billing subscription:
+- Receives OrderCreated events only
 
-This ensures each microservice receives only the events it needs, reducing unnecessary processing and improving scalability.
+Email subscription:
+- Receives OrderCreated and OrderCancelled events
+
+This reduces unnecessary processing, improves scalability, and keeps services loosely coupled.
+Filtering behavior was verified using CloudWatch Logs to confirm correct event delivery.
